@@ -11,6 +11,7 @@ import { Sparkles, Clock } from 'lucide-react'
 function App() {
     const [content, setContent] = useState(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState(null)
     const [history, setHistory] = useState([])
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [passedPrompt, setPassedPrompt] = useState('')
@@ -31,6 +32,7 @@ function App() {
     const handleGenerate = async (platform, prompt, type) => {
         setIsLoading(true)
         setContent(null)
+        setError(null)
         setPassedPrompt('') // Reset template trigger
         try {
             const result = await generateContent(platform, prompt, type)
@@ -38,6 +40,7 @@ function App() {
             setHistory(prev => [result, ...prev].slice(0, 50)) // Keep last 50
         } catch (error) {
             console.error('Failed to generate content:', error)
+            setError(error.message)
         } finally {
             setIsLoading(false)
         }
@@ -144,6 +147,18 @@ function App() {
                                         <p className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-white">Crafting your masterpiece...</p>
                                         <p className="text-slate-500 text-sm">Optimizing for platform engagement and reach</p>
                                     </div>
+                                </motion.div>
+                            )}
+
+                            {error && !isLoading && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-center space-y-3 max-w-xl mx-auto"
+                                >
+                                    <p className="text-red-400 font-bold text-lg">AI Generation Failed</p>
+                                    <p className="text-red-300 text-sm italic whitespace-pre-wrap">"{error}"</p>
+                                    <p className="text-slate-500 text-xs">Note: If you just added your API key, make sure the backend server was restarted.</p>
                                 </motion.div>
                             )}
 

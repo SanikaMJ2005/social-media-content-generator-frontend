@@ -1,11 +1,13 @@
 import { Copy, Check, Download, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
+import { cn } from '../lib/utils'
 import { PlatformIcon } from './PlatformIcon'
 import { PLATFORMS } from '../lib/mockApi'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function ContentCard({ content }) {
     const [copied, setCopied] = useState(false)
+    const [isPublishing, setIsPublishing] = useState(false)
     const platformInfo = PLATFORMS[content.platform]
 
     const handleCopy = () => {
@@ -22,6 +24,25 @@ export function ContentCard({ content }) {
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
+    }
+
+    const handlePublish = () => {
+        setIsPublishing(true)
+        const urls = {
+            LINKEDIN: "https://www.linkedin.com/sharing/share-offsite/",
+            INSTAGRAM: "https://www.instagram.com/",
+            FACEBOOK: "https://www.facebook.com/sharer/sharer.php?u=https://socialspark.ai",
+            YOUTUBE: "https://studio.youtube.com/",
+        }
+
+        // Copy text first to ensure it's in clipboard
+        handleCopy()
+
+        // Wait a moment for the animation before opening
+        setTimeout(() => {
+            window.open(urls[content.platform] || "https://google.com", "_blank")
+            setIsPublishing(false)
+        }, 1500)
     }
 
     return (
@@ -85,9 +106,39 @@ export function ContentCard({ content }) {
             </div>
 
             <div className="p-6 bg-white/[0.02] border-t border-white/5 flex justify-end">
-                <button className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary-hover text-white rounded-full font-medium transition-all">
-                    <span>Publish to {platformInfo.name}</span>
-                    <ExternalLink className="w-4 h-4" />
+                <button
+                    onClick={handlePublish}
+                    disabled={isPublishing}
+                    className={cn(
+                        "flex items-center gap-2 px-8 py-3 rounded-full font-bold transition-all relative overflow-hidden",
+                        isPublishing
+                            ? "bg-green-500 text-white"
+                            : "bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 hover:scale-105"
+                    )}
+                >
+                    <AnimatePresence mode="wait">
+                        {isPublishing ? (
+                            <motion.div
+                                key="publishing"
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                className="flex items-center gap-2"
+                            >
+                                <Check className="w-4 h-4" />
+                                <span>Copied! Opening {platformInfo.name}...</span>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="idle"
+                                initial={{ y: -20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                className="flex items-center gap-2"
+                            >
+                                <span>Publish to {platformInfo.name}</span>
+                                <ExternalLink className="w-4 h-4" />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </button>
             </div>
         </motion.div>
