@@ -1,1 +1,0 @@
-# social-media-content-generator-frontend
