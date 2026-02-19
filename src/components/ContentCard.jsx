@@ -1,6 +1,7 @@
 import { Copy, Check, Download, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '../lib/utils'
+import { postDirectly } from '../lib/mockApi'
 import { PlatformIcon } from './PlatformIcon'
 import { PLATFORMS } from '../lib/mockApi'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -26,23 +27,63 @@ export function ContentCard({ content }) {
         document.body.removeChild(element);
     }
 
-    const handlePublish = () => {
+    const handleConnect = () => {
+        const authUrls = {
+            LINKEDIN: "http://localhost:5000/auth/linkedin",
+            FACEBOOK: "http://localhost:5000/auth/facebook",
+            YOUTUBE: "http://localhost:5000/auth/google",
+        }
+        window.location.href = authUrls[content.platform] || "#"
+    }
+
+    const handlePostDirectly = async () => {
         setIsPublishing(true)
-        const urls = {
-            LINKEDIN: "https://www.linkedin.com/sharing/share-offsite/",
-            INSTAGRAM: "https://www.instagram.com/",
-            FACEBOOK: "https://www.facebook.com/sharer/sharer.php?u=https://socialspark.ai",
-            YOUTUBE: "https://studio.youtube.com/",
+        try {
+            await postDirectly(content.platform, content.text, content.mediaUrl)
+            alert(`${platformInfo.name} post successful!`)
+        } catch (error) {
+            alert(`Failed to post to ${platformInfo.name}: ${error.message}`)
+        } finally {
+            setIsPublishing(false)
+        }
+    }
+
+    const handlePublish = () => {
+        // If the platform isn't connected yet, show the connection flow
+        if (!content.isConnected) {
+            handleConnect()
+            return
         }
 
-        // Copy text first to ensure it's in clipboard
+        // If connected, proceed with direct post
+        handlePostDirectly()
+    }
+
+    // This is the fallback for platforms that don't support direct posting yet
+    const handleManualPublish = () => {
+        setIsPublishing(true)
+        const encodedText = encodeURIComponent(content.text)
+
+        const urls = {
+            LINKEDIN: `https://www.linkedin.com/feed/?shareActive=true&text=${encodedText}`,
+            INSTAGRAM: "https://www.instagram.com/",
+            FACEBOOK: `https://www.facebook.com/sharer/sharer.php?quote=${encodedText}&u=https://socialspark.ai`,
+            YOUTUBE: "https://studio.youtube.com/channel/content/videos",
+        }
+
         handleCopy()
 
-        // Wait a moment for the animation before opening
-        setTimeout(() => {
-            window.open(urls[content.platform] || "https://google.com", "_blank")
+        const win = window.open(urls[content.platform] || "https://google.com", "_blank")
+
+        if (!win) {
+            alert("Popup was blocked! Please allow popups for this site.")
             setIsPublishing(false)
-        }, 1500)
+            return
+        }
+
+        setTimeout(() => {
+            setIsPublishing(false)
+        }, 3000)
     }
 
     return (
@@ -105,42 +146,81 @@ export function ContentCard({ content }) {
                 )}
             </div>
 
-            <div className="p-6 bg-white/[0.02] border-t border-white/5 flex justify-end">
-                <button
-                    onClick={handlePublish}
-                    disabled={isPublishing}
-                    className={cn(
-                        "flex items-center gap-2 px-8 py-3 rounded-full font-bold transition-all relative overflow-hidden",
-                        isPublishing
-                            ? "bg-green-500 text-white"
-                            : "bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 hover:scale-105"
-                    )}
-                >
-                    <AnimatePresence mode="wait">
-                        {isPublishing ? (
-                            <motion.div
-                                key="publishing"
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                className="flex items-center gap-2"
-                            >
-                                <Check className="w-4 h-4" />
-                                <span>Copied! Opening {platformInfo.name}...</span>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="idle"
-                                initial={{ y: -20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                className="flex items-center gap-2"
-                            >
-                                <span>Publish to {platformInfo.name}</span>
-                                <ExternalLink className="w-4 h-4" />
-                            </motion.div>
+            <div className="p-6 bg-white/[0.02] border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <div className={cn("w-1.5 h-1.5 rounded-full", content.isConnected ? "bg-green-500" : "bg-yellow-500")} />
+                    <span>{content.isConnected ? "Profile Connected" : "Profile Not Connected"}</span>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    {/* Only show manual publish if it's not connected or doesn't support direct post */}
+                    <button
+                        onClick={handleManualPublish}
+                        className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-full font-medium transition-all text-sm border border-white/10"
+                    >
+                        Share Manually
+                    </button>
+
+                    <button
+                        onClick={handlePublish}
+                        disabled={isPublishing}
+                        className={cn(
+                            "flex items-center gap-2 px-8 py-3 rounded-full font-bold transition-all relative overflow-hidden flex-1",
+                            isPublishing
+                                ? "bg-green-500 text-white"
+                                : content.isConnected
+                                    ? "bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 hover:scale-105"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white"
                         )}
-                    </AnimatePresence>
-                </button>
+                    >
+                        <AnimatePresence mode="wait">
+                            {isPublishing ? (
+                                <motion.div
+                                    key="publishing"
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Check className="w-4 h-4" />
+                                    <span>Posting...</span>
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="idle"
+                                    initial={{ y: -20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    className="flex items-center gap-2 text-sm"
+                                >
+                                    {content.isConnected ? (
+                                        <>
+                                            <span>Post Directly to {platformInfo.name}</span>
+                                            <ExternalLink className="w-4 h-4" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Connect {platformInfo.name} Account</span>
+                                            <ExternalLink className="w-4 h-4" />
+                                        </>
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </button>
+                </div>
             </div>
+
+            {/* Platform Guide Overlay */}
+            {isPublishing && (content.platform === 'INSTAGRAM' || content.platform === 'YOUTUBE') && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-primary/10 border-t border-primary/20 text-center"
+                >
+                    <p className="text-xs font-semibold text-primary">
+                        Note: {platformInfo.name} requires manual paste. Just press Ctrl+V in the post box!
+                    </p>
+                </motion.div>
+            )}
         </motion.div>
     )
 }

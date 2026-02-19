@@ -82,3 +82,25 @@ export const generateContent = async (platform, prompt, type) => {
         };
     }
 };
+
+export const postDirectly = async (platform, text, mediaUrl = null) => {
+    try {
+        const response = await fetch(`http://localhost:5000/post/${platform.toLowerCase()}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ platform, text, mediaUrl }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to post directly');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Direct Post Error:', error);
+        throw error;
+    }
+};
