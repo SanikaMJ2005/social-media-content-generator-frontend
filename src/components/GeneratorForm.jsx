@@ -1,23 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PLATFORMS } from '../lib/mockApi'
 import { PlatformIcon } from './PlatformIcon'
 import { Send, Image as ImageIcon, Video as VideoIcon, Type } from 'lucide-react'
-import { clsx, type ClassValue } from 'clsx'
+import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
 function cn(...inputs) {
     return twMerge(clsx(inputs))
 }
 
-export function GeneratorForm({ onGenerate, isLoading }) {
+export function GeneratorForm({ onGenerate, isLoading, initialPrompt }) {
     const [platform, setPlatform] = useState('LINKEDIN')
     const [type, setType] = useState('TEXT')
     const [prompt, setPrompt] = useState('')
+
+    useEffect(() => {
+        if (initialPrompt) {
+            setPrompt(initialPrompt)
+        }
+    }, [initialPrompt])
 
     const handleSubmit = (e) => {
         e.preventDefault()
         if (!prompt.trim()) return
         onGenerate(platform, prompt, type)
+    }
+
+    const handleKeyDown = (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            handleSubmit(e)
+        }
     }
 
     return (
@@ -79,10 +91,12 @@ export function GeneratorForm({ onGenerate, isLoading }) {
                     <textarea
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         placeholder="E.g. Write a professional post about the benefits of AI in 2024 for small businesses..."
                         className="w-full h-40 bg-white/5 border border-white/10 rounded-2xl p-6 text-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none placeholder:text-slate-600"
                     />
                     <button
+                        type="submit"
                         disabled={isLoading || !prompt.trim()}
                         className="absolute bottom-4 right-4 p-4 bg-primary hover:bg-primary-hover disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-lg hover:shadow-primary/20"
                     >
@@ -93,6 +107,9 @@ export function GeneratorForm({ onGenerate, isLoading }) {
                         )}
                     </button>
                 </div>
+                <p className="text-[10px] text-slate-600 ml-1 uppercase tracking-widest font-bold">
+                    Press <kbd className="bg-white/5 px-1 rounded">Ctrl</kbd> + <kbd className="bg-white/5 px-1 rounded">Enter</kbd> to generate
+                </p>
             </div>
         </form>
     )

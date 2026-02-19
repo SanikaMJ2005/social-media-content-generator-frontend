@@ -14,6 +14,16 @@ export function ContentCard({ content }) {
         setTimeout(() => setCopied(false), 2000)
     }
 
+    const handleDownload = () => {
+        const element = document.createElement("a");
+        const file = new Blob([content.text], { type: 'text/plain' });
+        element.href = URL.createObjectURL(file);
+        element.download = `${content.platform}_post.txt`;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    }
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -42,7 +52,10 @@ export function ContentCard({ content }) {
                         {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                         {copied ? 'Copied' : 'Copy Text'}
                     </button>
-                    <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all text-slate-400">
+                    <button
+                        onClick={handleDownload}
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all text-slate-400"
+                    >
                         <Download className="w-4 h-4" />
                     </button>
                 </div>
