@@ -119,6 +119,14 @@ async def auth(platform: str):
         return RedirectResponse(
             f"https://www.facebook.com/v18.0/dialog/oauth?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&response_type=code"
         )
+    elif platform == "facebook":
+        client_id = os.getenv("FACEBOOK_CLIENT_ID")
+        redirect_uri = os.getenv("FACEBOOK_REDIRECT_URI")
+        # Facebook Page scopes for posting
+        scope = "pages_manage_posts,pages_read_engagement,pages_show_list,public_profile"
+        return RedirectResponse(
+            f"https://www.facebook.com/v18.0/dialog/oauth?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&response_type=code"
+        )
     # Add other platforms here...
     raise HTTPException(status_code=400, detail=f"Platform {platform} not supported for direct OAuth yet.")
 
@@ -170,6 +178,30 @@ async def instagram_callback(code: str):
             return {"message": "Instagram connected successfully! (Note: Further setup might be needed for specific Instagram Business IDs)"}
         return {"error": "Failed to connect Instagram", "details": token_data}
 
+@app.get("/auth/facebook/callback")
+async def facebook_callback(code: str):
+    """Handle Facebook OAuth callback"""
+    client_id = os.getenv("FACEBOOK_CLIENT_ID")
+    client_secret = os.getenv("FACEBOOK_CLIENT_SECRET")
+    redirect_uri = os.getenv("FACEBOOK_REDIRECT_URI")
+
+    async with httpx.AsyncClient() as client_http:
+        # 1. Exchange code for access token
+        response = await client_http.get(
+            "https://graph.facebook.com/v18.0/oauth/access_token",
+            params={
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uri": redirect_uri,
+                "code": code,
+            },
+        )
+        token_data = response.json()
+        if "access_token" in token_data:
+            tokens["FACEBOOK"] = token_data["access_token"]
+            return {"message": "Facebook connected successfully! Post directly to your pages."}
+        return {"error": "Failed to connect Facebook", "details": token_data}
+
 # --- Direct Posting Routes ---
 
 @app.post("/post/{platform}")
@@ -217,6 +249,44 @@ async def post_to_platform(platform: str, data: DirectPostRequest):
         async with httpx.AsyncClient() as client_http:
             # This is a simplified version; real flow involves getting the IG ID first
             return {"message": "Direct posting to Instagram requires a linked Business Account ID. This feature is partially implemented.", "status": "pending_ig_id"}
+
+    elif platform_key == "FACEBOOK":
+        # Facebook Posting Logic
+        async with httpx.AsyncClient() as client_http:
+            # 1. Get the Page ID (In a real app, you'd let user choose. For now, we take the first page)
+            pages_res = await client_http.get(
+                "https://graph.facebook.com/v18.0/me/accounts",
+                params={"access_token": token}
+            )
+            pages_data = pages_res.json()
+            if not pages_data.get("data"):
+                return {"error": "No Facebook Pages found for this user."}
+            
+            page = pages_data["data"][0]
+            page_id = page["id"]
+            page_token = page["access_token"]
+
+            if data.mediaUrl:
+                # Post with photo
+                res = await client_http.post(
+                    f"https://graph.facebook.com/v18.0/{page_id}/photos",
+                    params={
+                        "url": data.mediaUrl,
+                        "caption": data.text,
+                        "access_token": page_token
+                    }
+                )
+            else:
+                # Text only post
+                res = await client_http.post(
+                    f"https://graph.facebook.com/v18.0/{page_id}/feed",
+                    params={
+                        "message": data.text,
+                        "access_token": page_token
+                    }
+                )
+            
+            return res.json()
 
     raise HTTPException(status_code=400, detail=f"Direct posting to {platform} not fully implemented in this demo.")
 
